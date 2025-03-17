@@ -1,0 +1,129 @@
+# Step 1: Import Required Libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+
+# Step 2: Load the COVID-19 dataset (Assumed CSV file)
+# Replace 'covid_data.csv' with the actual path to your dataset
+df = pd.read_csv('covid_data.csv')
+
+# Step 3: Explore the Data - First Look
+print("First 5 rows of the dataset:")
+print(df.head())
+
+# Basic Info about the dataset
+print("\nDataset Info:")
+print(df.info())
+
+# Check for Missing Values
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+# Step 4: Data Preprocessing
+# Convert the 'Date' column to datetime format if not already
+df['Date'] = pd.to_datetime(df['Date'], format='%Y-%m-%d')
+
+# Fill missing values if any (can use forward fill or backward fill)
+df.fillna(method='ffill', inplace=True)  # Forward fill for missing data
+
+# Step 5: Descriptive Statistics
+print("\nDescriptive Statistics:")
+print(df.describe())
+
+# Step 6: Grouping and Aggregating Data - Example by Country
+# Group by country and get total cases and deaths
+country_data = df.groupby('Country')['TotalCases', 'TotalDeaths', 'TotalRecovered'].max()
+
+# Step 7: Data Visualization
+
+# 1. Plot Total Cases Over Time
+plt.figure(figsize=(10, 6))
+plt.plot(df['Date'], df['TotalCases'], label='Total Cases', color='blue')
+plt.title("Total COVID-19 Cases Over Time")
+plt.xlabel("Date")
+plt.ylabel("Total Cases")
+plt.xticks(rotation=45)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# 2. Plot Deaths vs Recoveries (Stacked Bar Plot)
+country_data[['TotalDeaths', 'TotalRecovered']].plot(kind='bar', stacked=True, figsize=(12, 8))
+plt.title('Deaths vs Recoveries by Country')
+plt.ylabel('Count')
+plt.xlabel('Country')
+plt.xticks(rotation=90)
+plt.show()
+
+# 3. Heatmap of Correlation between Numerical Columns
+plt.figure(figsize=(10, 6))
+corr = df[['TotalCases', 'TotalDeaths', 'TotalRecovered', 'ActiveCases']].corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
+plt.title("Correlation Heatmap")
+plt.show()
+
+# 4. Daily New Cases and Deaths Over Time
+df['NewCases'] = df['TotalCases'].diff()
+df['NewDeaths'] = df['TotalDeaths'].diff()
+
+plt.figure(figsize=(10, 6))
+plt.plot(df['Date'], df['NewCases'], label='New Cases', color='green')
+plt.plot(df['Date'], df['NewDeaths'], label='New Deaths', color='red')
+plt.title("Daily New Cases and Deaths Over Time")
+plt.xlabel("Date")
+plt.ylabel("Count")
+plt.legend()
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.show()
+
+# 5. Country-wise Total Cases - Bar Plot (Top 10)
+top_countries = country_data.sort_values(by='TotalCases', ascending=False).head(10)
+top_countries[['TotalCases']].plot(kind='bar', figsize=(12, 8), color='purple')
+plt.title("Top 10 Countries by Total Cases")
+plt.ylabel('Total Cases')
+plt.xlabel('Country')
+plt.xticks(rotation=45)
+plt.show()
+
+# 6. Pie Chart for Total Cases by Continent (If Continent Data is Available)
+# Assuming 'Continent' column exists in the dataset
+continent_data = df.groupby('Continent')['TotalCases'].max()
+plt.figure(figsize=(8, 8))
+plt.pie(continent_data, labels=continent_data.index, autopct='%1.1f%%', colors=sns.color_palette("Set3", n_colors=len(continent_data)))
+plt.title("Distribution of Total Cases by Continent")
+plt.show()
+
+# Step 8: Trendline on Cases Growth (Using Linear Regression)
+from sklearn.linear_model import LinearRegression
+
+# Creating a Linear Regression model to predict trend of Total Cases
+df['Days'] = (df['Date'] - df['Date'].min()).dt.days
+model = LinearRegression()
+model.fit(df[['Days']], df['TotalCases'])
+df['Trendline'] = model.predict(df[['Days']])
+
+# Plotting the trendline
+plt.figure(figsize=(10, 6))
+plt.plot(df['Date'], df['TotalCases'], label='Total Cases', color='blue')
+plt.plot(df['Date'], df['Trendline'], label='Trendline', color='red', linestyle='--')
+plt.title("Total Cases and Trendline")
+plt.xlabel("Date")
+plt.ylabel("Total Cases")
+plt.xticks(rotation=45)
+plt.legend()
+plt.show()
+
+# Step 9: Identify and Handle Outliers (Z-Score Method)
+from scipy import stats
+
+z_scores = np.abs(stats.zscore(df[['TotalCases', 'TotalDeaths', 'TotalRecovered', 'ActiveCases']]))
+outliers = (z_scores > 3).all(axis=1)
+print("\nOutliers in the data:")
+print(df[outliers])
+
+# Step 10: Save Processed Data (Optional)
+# If you want to save the cleaned and processed data to a new file:
+df.to_csv('cleaned_covid_data.csv', index=False)
